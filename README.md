@@ -11,3 +11,4 @@
 - [x] Get current weather by gps
 - [x] Add App icon
 - [x] Change API key
+- [x] Added splash screen
