@@ -9,5 +9,5 @@
 - [x] enable geolocation
   - [x] Handle Permission Denied
 - [x] Get current weather by gps
-- [ ] Add App icon and splashScreen
-- [ ] Change API key
+- [x] Add App icon
+- [x] Change API key

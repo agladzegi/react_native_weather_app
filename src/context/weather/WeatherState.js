@@ -1,7 +1,7 @@
 import React, {useReducer} from 'react';
 import axios from 'axios';
 
-import {EXAMPLE_API_KEY} from '@env';
+import {API_KEY} from '@env';
 import WeatherContext from './WeatherContext';
 import WeatherReducer from './WeatherReducer';
 import {
@@ -27,7 +27,7 @@ const WeatherState = (props) => {
 
   // Get weather by city name
   const weatherByCity = async (city = 'London') => {
-    const API_URL = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${EXAMPLE_API_KEY}`;
+    const API_URL = `https://api.openweathermap.org/data/2.5/weather?q=${city}&units=metric&appid=${API_KEY}`;
 
     try {
       const res = await axios.get(API_URL);
@@ -47,7 +47,7 @@ const WeatherState = (props) => {
   // Get daily forecast
   const getDaily = async (coords) => {
     const API_URL = `https://api.openweathermap.org/data/2.5/onecall?lat=${coords.lat}&lon=${coords.lon}&
-    exclude=minutely,hourly&units=metric&appid=${EXAMPLE_API_KEY}`;
+    exclude=minutely,hourly&units=metric&appid=${API_KEY}`;
 
     try {
       const res = await axios.get(API_URL);
@@ -71,7 +71,7 @@ const WeatherState = (props) => {
 
   // Get weather by GPS
   const getWeatherByGPS = async (coords) => {
-    const API_URL = `https://api.openweathermap.org/data/2.5/weather?lat=${coords.lat}&lon=${coords.lon}&units=metric&appid=${EXAMPLE_API_KEY}`;
+    const API_URL = `https://api.openweathermap.org/data/2.5/weather?lat=${coords.lat}&lon=${coords.lon}&units=metric&appid=${API_KEY}`;
 
     try {
       const res = await axios.get(API_URL);
