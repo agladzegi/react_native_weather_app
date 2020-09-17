@@ -13,7 +13,7 @@ import WeatherState from './context/weather/WeatherState';
 const App = () => {
   return (
     <WeatherState>
-      <StatusBar backgroundColor="#bb79a2" />
+      <StatusBar backgroundColor="#5d54a4" />
       <SafeAreaView style={styles.container}>
         <Weather />
       </SafeAreaView>

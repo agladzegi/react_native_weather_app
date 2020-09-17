@@ -8,11 +8,17 @@ import {
   Alert,
   ActivityIndicator,
   StatusBar,
+  FlatList,
+  PermissionsAndroid,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import MaterialIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import * as Animatable from 'react-native-animatable';
+import AsyncStorage from '@react-native-community/async-storage';
+import Geolocation from 'react-native-geolocation-service';
 
 import WeatherContext from '../context/weather/WeatherContext';
+import ListItem from './ListItem';
 
 const Weather = () => {
   const weatherContext = useContext(WeatherContext);
@@ -22,22 +28,102 @@ const Weather = () => {
 
   const {
     currentWeather,
-    getCurrentWeather,
+    weatherByCity,
     loading,
     error,
     clearError,
+    daily,
+    location,
+    getDaily,
+    getWeatherByGPS,
   } = weatherContext;
 
   const ref = useRef();
 
   useEffect(() => {
-    getCurrentWeather();
-  }, []);
+    if (error) {
+      if (error === 401 || error === 429 || error === 400) {
+        Alert.alert('Oops', 'Something went wrong');
+      } else {
+        Alert.alert('Oops', 'City not found');
+      }
+
+      clearError();
+    } else {
+      getData();
+    }
+  }, [error, loading]);
+
+  const getDailyWeather = () => {
+    if (!loading && !error) {
+      getDaily(location);
+    }
+  };
+
+  const getData = async () => {
+    try {
+      const city = await AsyncStorage.getItem('city');
+      if (city !== null) {
+        weatherByCity(city);
+      } else {
+        weatherByCity();
+      }
+
+      getDailyWeather();
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const submitGPS = async () => {
+    try {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        {
+          title: 'Location Permission',
+          message:
+            'gWeather needs access to your location in order to use this function',
+          buttonNeutral: 'Ask Me later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'Ok',
+        },
+      );
+
+      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+        Geolocation.getCurrentPosition(
+          async (position) => {
+            getWeatherByGPS({
+              lat: position.coords.latitude,
+              lon: position.coords.longitude,
+            });
+            getDailyWeather();
+          },
+          (error) => {
+            // See error code charts below.
+            if (error.code === 1 || error.code === 2 || error.code === 3) {
+              Alert.alert('Oops', `${error.code}`);
+            } else {
+              Alert.alert('Oops', 'Something went wrong...');
+            }
+          },
+          {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+        );
+      } else {
+        Alert.alert(
+          'Location permission denied',
+          'In order to use this function please turn on location permission for this app.',
+        );
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
   const submit = () => {
     if (inputValue !== '') {
       if (inputValue.match(/^[a-zA-Z]+(?:[\s-][a-zA-Z]+)*$/)) {
-        getCurrentWeather(inputValue);
+        weatherByCity(inputValue);
+        getDailyWeather();
       } else {
         Alert.alert('Oops', 'Please include valid city name');
       }
@@ -53,15 +139,28 @@ const Weather = () => {
     ref.current.bounceIn();
   };
 
-  if (error) {
-    if (error === 401 || error === 429) {
-      Alert.alert('Oops', 'Something went wrong');
-      clearError();
-    }
+  function WeatherIcon() {
+    if (currentWeather.weather[0]) {
+      const weatherId = currentWeather.weather[0].id.toString();
 
-    if (error === '404') {
-      Alert.alert('Oops', 'City not found');
-      clearError();
+      if (weatherId.startsWith(2)) {
+        return <MaterialIcon name="weather-lightning" size={70} color="#fff" />;
+      } else if (weatherId.startsWith(3)) {
+        return <MaterialIcon name="weather-rainy" size={70} color="#fff" />;
+      } else if (weatherId.startsWith(5)) {
+        return <MaterialIcon name="weather-pouring" size={70} color="#fff" />;
+      } else if (weatherId.startsWith(6)) {
+        return <MaterialIcon name="weather-snowy" size={70} color="#fff" />;
+      } else if (weatherId.startsWith(7)) {
+        return <MaterialIcon name="weather-fog" size={70} color="#fff" />;
+      } else if (currentWeather.weather[0].icon === '01d') {
+        return <MaterialIcon name="weather-sunny" size={70} color="#fff" />;
+      } else if (currentWeather.weather[0].icon === '01n') {
+        return <MaterialIcon name="weather-night" size={70} color="#fff" />;
+      } else if (weatherId.startsWith(8)) {
+        return <MaterialIcon name="weather-cloudy" size={70} color="#fff" />;
+      } else
+        return <MaterialIcon name="weather-sunny" size={70} color="#fff" />;
     }
   }
 
@@ -73,6 +172,7 @@ const Weather = () => {
           duration={1000}
           style={styles.header}>
           <TouchableOpacity
+            onPress={submitGPS}
             style={{
               flex: 1,
               justifyContent: 'center',
@@ -117,7 +217,7 @@ const Weather = () => {
                       fontSize: 20,
                       textAlign: 'center',
                     }}>
-                    {currentWeather.city}
+                    {currentWeather.name}
                   </Text>
                 ) : null}
               </Animatable.View>
@@ -145,19 +245,35 @@ const Weather = () => {
         </View>
       ) : (
         <View style={styles.bottomContainer}>
-          <View style={styles.iconContainer}>
+          <Animatable.View
+            duration={1000}
+            animation="fadeIn"
+            style={styles.iconContainer}>
+            {currentWeather ? <WeatherIcon /> : null}
+          </Animatable.View>
+          <Animatable.View
+            duration={1000}
+            animation="fadeIn"
+            style={styles.tempContainer}>
             {currentWeather ? (
-              <Text style={{textAlign: 'center', fontSize: 30, color: '#fff'}}>
-                {currentWeather.weather.description}, {currentWeather.temp}°
+              <Text style={{textAlign: 'center', fontSize: 25, color: '#fff'}}>
+                {currentWeather.weather[0].description.charAt(0).toUpperCase() +
+                  currentWeather.weather[0].description.slice(1)}
+                , {currentWeather.main.temp}°
               </Text>
             ) : null}
-            {error ? <Text>{error}</Text> : null}
-          </View>
-          <View style={styles.tempContainer}>
-            {loading ? <Text>loading</Text> : <Text>not loading</Text>}
-          </View>
+          </Animatable.View>
           <View style={styles.forecastContainer}>
-            <Text>Forecast</Text>
+            {daily.length > 0 ? (
+              <FlatList
+                showsVerticalScrollIndicator={false}
+                data={daily}
+                keyExtractor={(item) => item.dt.toString()}
+                renderItem={({item, index}) => {
+                  return <ListItem item={item} index={index} />;
+                }}
+              />
+            ) : null}
           </View>
         </View>
       )}
@@ -168,7 +284,7 @@ const Weather = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#bb79a2',
+    backgroundColor: '#5d54a4',
     paddingTop: StatusBar.currentHeight || 10,
   },
   loading: {
@@ -195,13 +311,23 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   iconContainer: {
-    flex: 3,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 30,
+    // backgroundColor: 'green',
   },
   tempContainer: {
-    flex: 2,
+    flex: 1,
+    // alignItems: 'center',
+    // justifyContent: 'center',
+    paddingTop: 10,
+    // backgroundColor: 'blue',
   },
   forecastContainer: {
     flex: 5,
+    marginTop: 10,
+    // backgroundColor: 'red',
   },
 });
 
